@@ -1,56 +1,72 @@
 import urllib from 'url'
 import fetch from 'isomorphic-fetch'
 
-
-const defaultRequestHeaders = {
-  'Accept': 'application/json',
-  'Content-Type': 'application/json'
-}
-
-export function request(url, method = 'GET', body, token = null) {
-  const defaultParams = {
-    method: method,
-    headers: token
-      ? { ...defaultRequestHeaders, 'Authorization': token }
-      : defaultRequestHeaders
-  }
-  const params = body !== undefined
-    ? { ...defaultParams, body: JSON.stringify(body) }
-    : defaultParams
-
-  return fetch(url, params)
-}
-
 export function requestJSON(payload) {
   const { url, method, token, body, onSuccess, onFail } = payload
-  return new Promise((resolve, reject) => {
-    return request(url, method, body, token)
-      .then(res => {
-        if(res.ok !== true) {
-           const payload = { res }
-           throw payload
-        }
+  const errorHandler = (err) => {
+    if(typeof onFail === "function") {
+      onFail(err)
+    }
 
-        return res
-      })
-      .then(res => res.json()
-        .then(json => ({ json, res }))
-        .catch(e => ({ json: {}, res })))
-      .then(o => typeof onSuccess === "function" ? onSuccess(o) : o)
-      .catch(e => {
-        console.log(e)
-        console.log("Request payload:", payload)
-        if(typeof onFail === "function") {
-          onFail(e)
-        } else {
-          alert("Unexpected error during request: " + e)
-        }
+    console.error("Error during request: " + err)
+  }
+
+  return new Promise((resolve, reject) => {
+    let r = fetch(url, createReqParams(payload))
+      .then(validateIfResOk)
+      .then(safeExtractResJSON)
+
+    if(typeof onSuccess === "function") {
+      r = r.then(onSuccess)
+    }
+
+    return r.catch(e => {
+        errorHandler(e)
         reject()
       })
       .then(resolve)
   })
 }
 
+const jsonRequestHeaders = {
+  'Accept': 'application/json',
+  'Content-Type': 'application/json'
+}
+
+function createReqParams(options) {
+  const { method, token, body } = options
+  let params = {
+    method: method || 'GET',
+    headers: jsonRequestHeaders,
+  }
+
+  if(body) {
+    params.body = JSON.stringify(body)
+  }
+
+  if(token) {
+    params.headers['Authorization'] = token
+  }
+
+  return params
+}
+
+function validateIfResOk(res) {
+  if(res.ok !== true) {
+    const payload = { res }
+    throw payload
+  }
+
+  return res
+}
+
+function safeExtractResJSON(res) {
+  return res.json()
+    .then(json => ({ json, res }))
+    .catch(e => ({ json: {}, res }))
+}
+
+// TODO: validate
 export function formatUrl(payload) {
   const { url } = payload
   const requestUrl = urllib.parse(url, true)
@@ -74,7 +90,6 @@ export function formatUrl(payload) {
 }
 
 export default {
-  request,
   requestJSON,
   formatUrl
 }
