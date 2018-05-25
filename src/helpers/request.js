@@ -2,7 +2,7 @@ import urllib from 'url'
 import fetch from 'isomorphic-fetch'
 
 export function requestJSON(payload) {
-  const { url, method, token, body, onSuccess, onFail } = payload
+  const { url, onSuccess, onFail } = payload
   const errorHandler = (err) => {
     if(typeof onFail === "function") {
       onFail(err)

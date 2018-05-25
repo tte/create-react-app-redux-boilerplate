@@ -7,8 +7,10 @@ export const request = store => next => action => {
     case FETCH__WITH_TOKEN:
       const { token } = store.getState().auth
       requestJSON({ ...payload, token })
+      break;
     case FETCH:
       requestJSON(payload)
+      break;
     default:
       next(action)
   }
